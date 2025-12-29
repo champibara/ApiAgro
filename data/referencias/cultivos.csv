@@ -1,0 +1,9 @@
+especie,variedad,temp_min,temp_max,precip_min_mm,precip_max_mm,ph_min,ph_max,pendiente_max,riesgo_extra
+Cultivo,Papa,10,18,500,800,5.0,7.0,15,Heladas
+Cultivo,Maiz,18,30,600,1000,5.5,7.5,12,Sequia
+Cultivo,Arroz,20,35,1000,2000,5.0,6.5,2,Inundacion necesaria
+Cultivo,Quinua,10,20,300,600,6.0,8.5,20,Exceso humedad
+Cultivo,Cafe,18,24,1500,2500,5.0,6.0,45,Viento fuerte
+Cultivo,Cacao,22,28,1500,3000,5.0,7.0,25,Frio
+Cultivo,Tomate,18,28,400,600,6.0,6.8,10,Plagas humedad
+Cultivo,Cebolla,13,24,350,600,6.0,7.0,10,Encharcamiento

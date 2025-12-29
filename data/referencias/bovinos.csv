@@ -1,0 +1,6 @@
+especie,variedad,temp_min,temp_max,humedad_max,altitud_max_m,pendiente_max,riesgo_extra
+Bovino,Holstein,5,22,70,2500,15,Estres calorico
+Bovino,Brown Swiss,5,24,70,3500,20,Moderado
+Bovino,Brahman,20,35,85,1500,25,Frio
+Bovino,Criollo,10,32,75,4000,35,Ninguno
+Bovino,Angus,10,25,75,2500,20,Calor excesivo

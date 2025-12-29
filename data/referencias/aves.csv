@@ -1,0 +1,5 @@
+especie,variedad,temp_min,temp_max,humedad_max,altitud_max_m,pendiente_max,riesgo_extra
+Ave,Broiler (Carne),18,24,70,2500,10,Golpe de calor
+Ave,Ponedora (Huevo),15,26,70,2800,15,Estres lumínico
+Ave,Pato,10,30,85,3000,20,Falta agua
+Ave,Pavo,18,25,65,2000,15,Frio pollitos

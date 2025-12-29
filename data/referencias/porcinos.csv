@@ -1,0 +1,6 @@
+especie,variedad,temp_min,temp_max,humedad_max,altitud_max_m,pendiente_max,riesgo_extra
+Porcino,Yorkshire,15,22,70,2000,10,Piel sensible
+Porcino,Landrace,16,22,70,2000,10,Debilidad patas
+Porcino,Duroc,18,28,75,2500,15,Resistente
+Porcino,Pietrain,18,24,70,1800,10,Estres cardiaco
+Porcino,Criollo,15,32,80,3000,20,Ninguno
