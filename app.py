@@ -68,12 +68,12 @@ with col_mapa:
     tab_buscar, tab_coords = st.tabs(["🔍 Buscador", "🌐 GPS"])
     
     with tab_buscar:
-        # AQUÍ ESTÁ EL CAMBIO: Espaciado para bajar el buscador
+        # Espaciado para bajar el buscador
         st.write("") 
         st.write("") 
         
         c1, c2 = st.columns([3, 1])
-        texto = c1.text_input("Lugar:", placeholder="Ej: Lurin, Peru", label_visibility="collapsed") # label_collapsed para que se vea más limpio
+        texto = c1.text_input("Lugar:", placeholder="Ej: Lurin, Peru", label_visibility="collapsed")
         
         if c2.button("Buscar 🔎"):
             cli = AgroClimaClient()
@@ -82,7 +82,7 @@ with col_mapa:
                 st.error("No encontrado.")
 
         if st.session_state['lista_opciones']:
-            st.write("") # Un poco más de aire
+            st.write("") 
             opciones = {op['label']: op for op in st.session_state['lista_opciones']}
             sel = st.selectbox("Selecciona la coincidencia:", list(opciones.keys()))
             if st.button("📍 Ir al lugar seleccionado"):
@@ -93,7 +93,7 @@ with col_mapa:
                 st.rerun()
 
     with tab_coords:
-        st.write("") # Espaciado también aquí
+        st.write("") 
         c_lat, c_lon = st.columns(2)
         n_lat = c_lat.number_input("Latitud", value=st.session_state['lat'], format="%.5f")
         n_lon = c_lon.number_input("Longitud", value=st.session_state['lon'], format="%.5f")
@@ -136,6 +136,10 @@ st.divider()
 if st.session_state['analisis_listo'] and st.session_state['datos_api']:
     datos = st.session_state['datos_api']
     
+    # --- AQUÍ BAJAMOS EL pH (Espaciado extra) ---
+    st.write("")
+    st.write("")
+    
     # 1. Ajuste de pH
     col_ph1, col_ph2 = st.columns([1, 3])
     with col_ph1:
@@ -144,20 +148,21 @@ if st.session_state['analisis_listo'] and st.session_state['datos_api']:
     with col_ph2:
         st.info("💡 Ajusta el pH si tienes análisis de laboratorio.")
 
-    # 2. Métricas (5 Columnas con LUZ)
+    st.write("") # Un poco más de aire antes de las métricas
+
+    # 2. Métricas (5 Columnas)
     st.subheader("📡 Condiciones Ambientales")
     m1, m2, m3, m4, m5 = st.columns(5)
     m1.metric("🌡️ Temp", f"{datos['clima']['temp_actual']} °C")
     m2.metric("💧 Humedad", f"{datos['clima']['humedad']} %")
     m3.metric("⛰️ Altitud", f"{datos['topografia']['altitud']:.0f} msnm")
-    m4.metric("☀️ Horas Luz", f"{datos['solar']['horas_luz']} h") 
+    m4.metric("☀️ Luz", f"{datos['solar']['horas_luz']} h") 
     m5.metric("🌧️ Lluvia", f"{int(datos['clima']['precipitacion_anual_estimada'])} mm")
 
     # 3. Análisis
     score, razones_raw, riesgo = analista.analizar(datos, categoria, variedad)
     consejos_expertos = generar_consejos_experto(datos, categoria, ph_user)
     
-    # Obtener regla específica para comparar (Para el mensaje "Ideal vs Actual")
     regla_actual = df_reglas[df_reglas['variedad'] == variedad].iloc[0]
 
     # Pestañas
@@ -193,7 +198,6 @@ if st.session_state['analisis_listo'] and st.session_state['datos_api']:
     with t3:
         st.subheader("Consultoría Técnica Detallada")
         
-        # --- AQUI ESTÁ LA MAGIA DE LOS MENSAJES COMPARATIVOS ---
         # 1. Mensajes de Comparación (Ideal vs Actual)
         hay_problemas = False
         
@@ -221,7 +225,7 @@ if st.session_state['analisis_listo'] and st.session_state['datos_api']:
 
         st.divider()
         
-        # 2. Consejos Expertos (Interpretación)
+        # 2. Consejos Expertos
         st.write("**Plan de Acción:**")
         if not consejos_expertos:
             st.info("Las condiciones son estándar. Aplicar plan de manejo preventivo normal.")
