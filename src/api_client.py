@@ -6,26 +6,28 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 class AgroClimaClient:
     def __init__(self):
-        # API 1: Clima (Open-Meteo)
         self.weather_url = "https://api.open-meteo.com/v1/forecast"
-        # API 2: Elevación (Open-Meteo)
         self.elevation_url = "https://api.open-meteo.com/v1/elevation"
-        # API 3: Datos Solares (Sunrise-Sunset.org) - ¡NUEVA!
         self.solar_url = "https://api.sunrise-sunset.org/json"
+        # NUEVA API PARA BUSCAR CIUDADES
+        self.geocoding_url = "https://geocoding-api.open-meteo.com/v1/search"
+
+    def buscar_ciudad(self, nombre):
+        """Busca coordenadas por nombre de ciudad"""
+        try:
+            params = {"name": nombre, "count": 1, "language": "es", "format": "json"}
+            resp = requests.get(self.geocoding_url, params=params, verify=False, timeout=5).json()
+            if "results" in resp:
+                resultado = resp["results"][0]
+                return resultado["latitude"], resultado["longitude"], resultado["name"], resultado["country"]
+            return None
+        except:
+            return None
 
     def obtener_todo(self, lat, lon):
-        """Función maestra que consulta 3 APIs distintas"""
-        
-        # 1. Llamada a API de Clima
         clima = self._get_clima(lat, lon)
-        
-        # 2. Llamada a API de Topografía
         pendiente, altitud = self._get_pendiente_altitud(lat, lon)
-        
-        # 3. Llamada a API Solar (NUEVO)
         horas_luz = self._get_datos_solares(lat, lon)
-        
-        # 4. Lógica interna (sin API externa)
         ph = self._estimar_ph_logico(lat, lon, clima['precipitacion_anual_estimada'])
         
         return {
@@ -52,7 +54,7 @@ class AgroClimaClient:
                 "temp_min_dia": resp["daily"]["temperature_2m_min"][0],
                 "temp_max_dia": resp["daily"]["temperature_2m_max"][0]
             }
-        except Exception:
+        except:
             return {"temp_actual": 25, "humedad": 60, "precipitacion_anual_estimada": 800}
 
     def _get_pendiente_altitud(self, lat, lon):
@@ -72,18 +74,13 @@ class AgroClimaClient:
             return 0, 0
 
     def _get_datos_solares(self, lat, lon):
-        """Consulta la API de Sunrise-Sunset para obtener el fotoperiodo"""
         try:
             params = {"lat": lat, "lng": lon, "formatted": 0}
-            # Esta es la TERCERA API
             resp = requests.get(self.solar_url, params=params, verify=False, timeout=5).json()
-            
-            # La API devuelve segundos de luz, convertimos a horas
             day_length_sec = resp["results"]["day_length"]
-            horas = day_length_sec / 3600 
-            return round(horas, 1)
+            return round(day_length_sec / 3600, 1)
         except:
-            return 12.0 # Promedio en el ecuador si falla
+            return 12.0
 
     def _estimar_ph_logico(self, lat, lon, lluvia_anual):
         if lluvia_anual > 2000: ph_base = 5.0
