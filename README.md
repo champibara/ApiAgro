@@ -17,23 +17,6 @@ El sistema cuenta con un "Mapa Inteligente" que ofrece:
 * **Distribución Territorial:** Muestra la aptitud agropecuaria por regiones usando indicadores como temperatura, humedad y precipitación.
 * **Análisis por Zona:** Al seleccionar un área, indica los tipos de ganado recomendados y sus condiciones de crianza.
 
-## 🏗️ Arquitectura del Sistema
-El flujo lógico de los datos sigue un proceso estructurado para garantizar la integridad de la información desde la fuente hasta el usuario final:
-
-```mermaid
-graph LR
-    A[Fuentes Externas: API/CSV] --> B[Módulo de Extracción]
-    B --> C[Transformación y Normalización - Pandas]
-    C --> D[Cruce de Variables y Lógica de Aptitud]
-    D --> E[Visualización: Mapa Inteligente]
-
-## 🛠️ Diseño y Planeamiento de la Extracción
-El sistema integra tres fuentes de información:
-1. **API de OpenWeather:** Datos climáticos en tiempo real.
-2. **API de Geopy:** Localización y coordenadas geográficas.
-3. **Archivos Estructurados (.CSV):** Parámetros técnicos de crianza y cultivo.
-```
-
 ## 📊 Estructuración de Datos
 La estructuración organiza los datos de entrada para que sean compatibles entre sí:
 * **Conversión de Formatos:** Transformación de respuestas API (JSON) y tablas locales (CSV) en DataFrames de Pandas.
