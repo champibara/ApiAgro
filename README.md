@@ -50,6 +50,7 @@ ApiAgro/
 │   └── map_utils.py         # Funciones para el Mapa Inteligente
 ├── app.py                   # Orquestador principal de Streamlit
 ├── requirements.txt         # Librerías (Pandas, Streamlit, etc.)
+├── .gitignore               # Archivos excluidos del repositorio
 └── README.md                # Documentación técnica
 ```
 
