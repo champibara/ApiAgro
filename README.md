@@ -36,14 +36,21 @@ El procesamiento es el núcleo lógico del sistema donde ocurre la toma de decis
 ## 📂 Estructura del Proyecto
 ```text
 ApiAgro/
-├── .devcontainer/           # Configuración de entorno estandarizado (Docker)
-├── data/
-│   └── referencias/         # Archivos CSV con parámetros técnicos agropecuarios
-├── src/                     # Lógica principal y módulos de extracción de datos
-├── .gitignore               # Archivos excluidos del control de versiones
-├── README.md                # Documentación técnica del proyecto
-├── app.py                   # Orquestador principal de la aplicación (Streamlit)
-└── requirements.txt         # Dependencias y librerías del proyecto
+├── .devcontainer/
+│   └── devcontainer.json    # Configuración de entorno estandarizado
+├── data/referencias         # Bases de datos técnicas
+│   ├── aves.csv
+│   ├── bovinos.csv
+│   ├── cultivos.csv
+│   └── porcinos.csv
+├── src/                     # Módulos de lógica y API
+│   ├── __init__.py          # Inicializador de paquete Python
+│   ├── agro_logic.py        # Procesamiento y lógica de aptitud
+│   ├── api_client.py        # Conexión con OpenWeather y Geopy
+│   └── map_utils.py         # Funciones para el Mapa Inteligente
+├── app.py                   # Orquestador principal de Streamlit
+├── requirements.txt         # Librerías (Pandas, Streamlit, etc.)
+└── README.md                # Documentación técnica
 ```
 
 ## 🚀 Guía de Instalación
