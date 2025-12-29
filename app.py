@@ -1,6 +1,7 @@
 import streamlit as st
 import folium
 from streamlit_folium import st_folium
+import pandas as pd
 
 # --- IMPORTACIONES ---
 from src.api_client import AgroClimaClient
@@ -9,43 +10,73 @@ from src.agro_logic import AgroAnalisis
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="AgroDecision Pro", page_icon="🌱", layout="wide")
 
-# --- LÓGICA DE INTERPRETACIÓN EXPERTA ---
-def generar_consejos_experto(datos, categoria, ph_suelo):
+# --- 1. FUNCIÓN DE CONSEJOS (CORREGIDA PARA pH MANUAL) ---
+def generar_consejos_experto(datos, categoria, ph_manual):
     """
-    Genera la interpretación profunda y consultoría técnica.
+    Recibe el ph_manual directamente del input del usuario.
     """
     consejos = []
     
-    # Variables
-    temp = datos['clima']['temp_actual']
-    humedad = datos['clima']['humedad']
-    altitud = datos['topografia']['altitud']
+    # Extraer variables del clima (usamos .get para evitar errores)
+    temp = datos['clima'].get('temp_actual', 20)
+    humedad = datos['clima'].get('humedad', 60)
+    altitud = datos['topografia'].get('altitud', 500)
+    lluvia = datos['clima'].get('precipitacion_anual_estimada', 0)
     
-    # 1. CULTIVOS
+    # Usamos EXPLICITAMENTE el ph_manual modificado por el usuario
+    ph_suelo = float(ph_manual) 
+    
+    # =======================================================
+    # 🚨 ANÁLISIS DE CULTIVOS
+    # =======================================================
     if categoria == "cultivos":
+        
+        # --- LÓGICA DE pH (Reacciona al cambio del usuario) ---
+        if ph_suelo < 5.5:
+            msg = (
+                f"☠️ **ACIDEZ DETECTADA (pH {ph_suelo})**\n\n"
+                "**Diagnóstico:** El suelo es demasiado ácido. Hay toxicidad por Aluminio y bloqueo de Fósforo.\n"
+                "**🛡️ Solución:** Aplicar **Cal Dolomita** inmediatamente (aprox 2 ton/ha)."
+            )
+            consejos.append((msg, "error"))
+            
+        elif ph_suelo > 7.8:
+            msg = (
+                f"⚠️ **ALCALINIDAD ALTA (pH {ph_suelo})**\n\n"
+                "**Diagnóstico:** Bloqueo de micronutrientes (Hierro, Zinc).\n"
+                "**🛡️ Solución:** Aplicar materia orgánica acidificante o Azufre elemental."
+            )
+            consejos.append((msg, "warning"))
+
+        # --- LÓGICA CLIMÁTICA ---
         if altitud > 3500 and temp < 10:
-            consejos.append(("❄️ **Riesgo de Helada:** A esta altitud la radiación nocturna es alta. Usar mallas o variedades nativas.", "warning"))
+            consejos.append(("❄️ **RIESGO DE HELADAS**\n\n**Diagnóstico:** Radiación nocturna extrema.\n**🛡️ Plan:** Riego al atardecer y Potasio foliar.", "error"))
+        
+        if temp > 22 and humedad > 80:
+            consejos.append(("🍄 **ALERTA HONGOS**\n\n**Diagnóstico:** Alta humedad + calor.\n**🛡️ Plan:** Poda de ventilación y Trichoderma.", "error"))
         
         if temp > 28 and humedad < 40:
-            consejos.append(("🍂 **Estrés Hídrico Atmosférico:** La planta cerrará estomas. El riego debe ser frecuente y nocturno.", "warning"))
-        elif temp > 25 and humedad > 80:
-            consejos.append(("🍄 **Alerta Fúngica:** Calor + Humedad = Roya/Mildiu. Aplicar fungicida preventivo.", "error"))
+            consejos.append(("🍂 **ESTRÉS HÍDRICO (Aire Seco)**\n\n**Diagnóstico:** Cierre de estomas.\n**🛡️ Plan:** Riegos cortos frecuentes y cobertura (Mulch).", "warning"))
         
-        if ph_suelo < 5.2:
-            consejos.append(("☠️ **Acidez Severa:** El Aluminio tóxico está libre y quema raíces. Aplicar cal dolomita urgentemente.", "error"))
-        elif ph_suelo > 7.5:
-            consejos.append(("⚠️ **Bloqueo de Nutrientes:** pH Alcalino. El hierro se insolubiliza (hojas amarillas). Usar quelatos.", "warning"))
+        if lluvia < 500:
+            consejos.append((f"💧 **DÉFICIT LLUVIA ({int(lluvia)} mm)**\n\n**Diagnóstico:** Requiere riego.\n**🛡️ Plan:** Instalar sistema por goteo.", "warning"))
 
-    # 2. ANIMALES
+    # =======================================================
+    # 🚨 ANÁLISIS DE ANIMALES
+    # =======================================================
     elif categoria in ["bovinos", "porcinos", "aves"]:
         if categoria == "bovinos" and altitud > 2800:
-            consejos.append(("⛰️ **Riesgo de Mal de Altura (Brisket):** Baja presión de oxígeno. Evitar Holstein puro.", "error"))
-        
+            consejos.append(("⛰️ **RIESGO: MAL DE ALTURA**\n\n**Diagnóstico:** Hipoxia.\n**🛡️ Plan:** Evitar Holstein puro.", "error"))
         if categoria == "porcinos" and temp > 27:
-            consejos.append(("🐷 **Estrés Térmico:** Los cerdos no sudan. Riesgo de muerte. Necesitan duchas/nebulizadores.", "error"))
-        
+            consejos.append(("🐷 **ESTRÉS TÉRMICO**\n\n**Diagnóstico:** Riesgo de infarto.\n**🛡️ Plan:** Nebulizadores y ventilación.", "error"))
         if humedad > 85:
-            consejos.append(("🦠 **Riesgo Sanitario:** Cama húmeda = Bacterias y Amoníaco. Ventilar y limpiar hoy mismo.", "warning"))
+            consejos.append(("🦠 **BACTERIOSIS**\n\n**Diagnóstico:** Camas húmedas.\n**🛡️ Plan:** Cal viva y reducir densidad.", "warning"))
+
+    # =======================================================
+    # ✅ SI TODO ESTÁ BIEN
+    # =======================================================
+    if not consejos:
+        consejos.append(("✨ **CONDICIONES IDEALES**\n\nEl ambiente es favorable.\n**🚀 Plan:** Enfocarse en nutrición para alto rendimiento.", "success"))
 
     return consejos
 
@@ -56,181 +87,240 @@ if 'analisis_listo' not in st.session_state: st.session_state['analisis_listo'] 
 if 'datos_api' not in st.session_state: st.session_state['datos_api'] = None
 if 'lista_opciones' not in st.session_state: st.session_state['lista_opciones'] = []
 
-# --- TÍTULO ---
+# --- INTERFAZ PRINCIPAL ---
 st.title("🌱 AgroDecision: Sistema de Zonificación")
 
 col_mapa, col_config = st.columns([2, 1])
 
-# --- COLUMNA 1: MAPA ---
+# --- COLUMNA 1: MAPA Y BUSCADOR ---
 with col_mapa:
     st.subheader("📍 Ubicación")
     
-    tab_buscar, tab_coords = st.tabs(["🔍 Buscador", "🌐 GPS"])
+    # Pestañas de búsqueda
+    tab_buscar, tab_coords = st.tabs(["🔍 Buscador", "🌐 GPS Manual"])
     
     with tab_buscar:
-        # Espaciado para bajar el buscador
-        st.write("") 
-        st.write("") 
-        
         c1, c2 = st.columns([3, 1])
-        texto = c1.text_input("Lugar:", placeholder="Ej: Lurin, Peru", label_visibility="collapsed")
-        
-        if c2.button("Buscar 🔎"):
+        texto = c1.text_input("Lugar:", label_visibility="collapsed", placeholder="Ej: Cajamarca, Peru")
+        if c2.button("Buscar"):
             cli = AgroClimaClient()
             st.session_state['lista_opciones'] = cli.buscar_opciones_ciudades(texto)
-            if not st.session_state['lista_opciones']:
-                st.error("No encontrado.")
-
+        
         if st.session_state['lista_opciones']:
-            st.write("") 
             opciones = {op['label']: op for op in st.session_state['lista_opciones']}
-            sel = st.selectbox("Selecciona la coincidencia:", list(opciones.keys()))
-            if st.button("📍 Ir al lugar seleccionado"):
+            sel = st.selectbox("Resultados encontrados:", list(opciones.keys()))
+            if st.button("📍 Ir a esta ubicación"):
                 lugar = opciones[sel]
                 st.session_state['lat'] = lugar['lat']
                 st.session_state['lon'] = lugar['lon']
-                st.session_state['analisis_listo'] = False
+                st.session_state['analisis_listo'] = False # Resetear análisis al mover mapa
                 st.rerun()
 
     with tab_coords:
-        st.write("") 
         c_lat, c_lon = st.columns(2)
         n_lat = c_lat.number_input("Latitud", value=st.session_state['lat'], format="%.5f")
         n_lon = c_lon.number_input("Longitud", value=st.session_state['lon'], format="%.5f")
-        if st.button("Actualizar"):
+        if st.button("Actualizar Mapa"):
             st.session_state['lat'] = n_lat
             st.session_state['lon'] = n_lon
             st.session_state['analisis_listo'] = False
             st.rerun()
 
-    # Mapa
-    tipo = st.radio("Capa:", ["Satélite", "Calles"], horizontal=True)
-    tiles = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}' if tipo == "Satélite" else "OpenStreetMap"
-    attr = 'Esri' if tipo == "Satélite" else "OSM"
+    # --- SELECCIÓN DE CAPA DE MAPA (SATÉLITE O CALLES) ---
+    st.write("🎨 **Estilo de Mapa:**")
+    tipo_mapa = st.radio("Capa", ["Satélite (ESRI)", "Calles (OSM)"], horizontal=True, label_visibility="collapsed")
+    
+    if "Satélite" in tipo_mapa:
+        tiles = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+        attr = 'Esri'
+    else:
+        tiles = 'OpenStreetMap'
+        attr = 'OSM'
 
+    # Renderizar mapa
     m = folium.Map(location=[st.session_state['lat'], st.session_state['lon']], zoom_start=14, tiles=tiles, attr=attr)
     folium.Marker([st.session_state['lat'], st.session_state['lon']], icon=folium.Icon(color="red", icon="leaf")).add_to(m)
     st_folium(m, height=350, width="100%")
 
-# --- COLUMNA 2: CONFIGURACIÓN ---
+# --- COLUMNA 2: CONFIGURACIÓN DE CULTIVO/ANIMAL ---
 with col_config:
     st.subheader("⚙️ Configuración")
     categoria = st.selectbox("Categoría", ["cultivos", "bovinos", "porcinos", "aves"])
     
+    # Cargar reglas
     analista = AgroAnalisis()
     df_reglas = analista.cargar_reglas(categoria)
     
     variedad = None
-    if df_reglas is not None:
+    if df_reglas is not None and not df_reglas.empty:
         variedad = st.selectbox("Variedad / Raza", df_reglas['variedad'].unique())
         st.write("")
-        if st.button("Analizar Viabilidad", type="primary"):
-            with st.spinner("Consultando satélites..."):
+        st.info("Presiona el botón para consultar datos satelitales.")
+        
+        if st.button("📊 ANALIZAR VIABILIDAD", type="primary"):
+            with st.spinner("Consultando satélites y clima histórico..."):
                 cli = AgroClimaClient()
                 st.session_state['datos_api'] = cli.obtener_todo(st.session_state['lat'], st.session_state['lon'])
                 st.session_state['analisis_listo'] = True
+    else:
+        st.error("Error cargando base de conocimientos (agro_logic.py).")
 
 st.divider()
 
-# --- RESULTADOS ---
+# --- SECCIÓN DE RESULTADOS ---
 if st.session_state['analisis_listo'] and st.session_state['datos_api']:
     datos = st.session_state['datos_api']
     
-    # --- AQUÍ BAJAMOS EL pH (Espaciado extra) ---
-    st.write("")
-    st.write("")
+    # =========================================================
+    # 🛠️ INPUT DE pH REACTIVO (AQUÍ ESTABA EL PROBLEMA)
+    # =========================================================
+    st.subheader("🧪 Análisis de Suelo")
+    col_input_ph, col_info_ph = st.columns([1, 4])
     
-    # 1. Ajuste de pH
-    col_ph1, col_ph2 = st.columns([1, 3])
-    with col_ph1:
-        ph_user = st.number_input("pH Suelo", 4.0, 9.0, float(datos['suelo']['ph']), 0.1)
-        datos['suelo']['ph'] = ph_user
-    with col_ph2:
-        st.info("💡 Ajusta el pH si tienes análisis de laboratorio.")
+    with col_input_ph:
+        # Usamos un 'key' único para que no se pierda el valor
+        ph_user = st.number_input(
+            "pH del Suelo", 
+            min_value=3.0, 
+            max_value=10.0, 
+            value=float(datos['suelo']['ph']), 
+            step=0.1,
+            key="ph_manual_input" 
+        )
+    
+    with col_info_ph:
+        st.success(f"Analizando consejos para **pH {ph_user}**...")
 
-    st.write("") # Un poco más de aire antes de las métricas
+    # Actualizamos el diccionario localmente para que el 'analista' lo use también
+    datos['suelo']['ph'] = ph_user 
 
-    # 2. Métricas (5 Columnas)
-    st.subheader("📡 Condiciones Ambientales")
+    # =========================================================
+    # 📡 DASHBOARD DE DATOS
+    # =========================================================
+    st.write("")
     m1, m2, m3, m4, m5 = st.columns(5)
     m1.metric("🌡️ Temp", f"{datos['clima']['temp_actual']} °C")
     m2.metric("💧 Humedad", f"{datos['clima']['humedad']} %")
-    m3.metric("⛰️ Altitud", f"{datos['topografia']['altitud']:.0f} msnm")
-    m4.metric("☀️ Luz", f"{datos['solar']['horas_luz']} h") 
+    m3.metric("⛰️ Altitud", f"{datos['topografia']['altitud']:.0f} m")
+    m4.metric("☀️ Luz", f"{datos['solar']['horas_luz']} h")
     m5.metric("🌧️ Lluvia", f"{int(datos['clima']['precipitacion_anual_estimada'])} mm")
 
-    # 3. Análisis
-    score, razones_raw, riesgo = analista.analizar(datos, categoria, variedad)
-    consejos_expertos = generar_consejos_experto(datos, categoria, ph_user)
-    
-    regla_actual = df_reglas[df_reglas['variedad'] == variedad].iloc[0]
+    # =========================================================
+    # 🧠 PROCESAMIENTO
+    # =========================================================
+    try:
+        # 1. Puntuación (Score)
+        score, razones, riesgo = analista.analizar(datos, categoria, variedad)
+        
+        # 2. Consejos (Pasamos ph_user explícitamente para asegurar reactividad)
+        consejos_expertos = generar_consejos_experto(datos, categoria, ph_user)
+        
+        # 3. Datos de referencia
+        regla_actual = df_reglas[df_reglas['variedad'] == variedad].iloc[0]
 
-    # Pestañas
-    t1, t2, t3 = st.tabs(["📊 Informe General", "🧬 Fisiología", "📝 Plan de Manejo"])
+    except Exception as e:
+        st.error(f"Error en cálculos internos: {e}")
+        st.stop()
 
+    # =========================================================
+    # 📑 PESTAÑAS DE DETALLE
+    # =========================================================
+    t1, t2, t3 = st.tabs(["📊 INFORME", "🧬 FISIOLOGÍA", "📝 PLAN DE MANEJO"])
+
+    # --- PESTAÑA 1: INFORME ---
     with t1:
-        if score >= 80: st.success(f"### ✅ APTO - Puntuación: {score}/100")
-        elif score >= 50: st.warning(f"### ⚠️ RIESGO MEDIO - Puntuación: {score}/100")
-        else: st.error(f"### ⛔ NO APTO - Puntuación: {score}/100")
+        if score >= 80: st.success(f"### ✅ APTO ({score}/100) - {variedad}")
+        elif score >= 50: st.warning(f"### ⚠️ RIESGO MEDIO ({score}/100) - {variedad}")
+        else: st.error(f"### ⛔ NO APTO ({score}/100) - {variedad}")
         
-        st.write("**Diagnóstico Rápido:**")
-        if not razones_raw: st.success("Todas las variables están en rango óptimo.")
+        if razones:
+            for r in razones: st.write(r)
         else:
-             for r in razones_raw:
-                if "⛔" in r: st.error(r)
-                elif "⚠️" in r: st.warning(r)
-                else: st.info(r)
+            st.success("✅ Todos los parámetros están en rango óptimo.")
 
+    # --- PESTAÑA 2: FISIOLOGÍA ---
     with t2:
-        st.write(f"### Fisiología: {variedad}")
-        if categoria in ["bovinos", "porcinos", "aves"]:
-            ith = (0.8 * datos['clima']['temp_actual']) + ((datos['clima']['humedad']/100) * (datos['clima']['temp_actual'] - 14.4)) + 46.4
-            st.metric("Índice de Confort (ITH)", f"{ith:.1f}")
-            if ith < 72: st.success("Confort térmico óptimo.")
-            elif ith < 78: st.warning("Alerta leve de estrés.")
-            else: st.error("Peligro: Estrés calórico severo.")
-        else:
-            balance = datos['clima']['precipitacion_anual_estimada'] - 800
-            st.metric("Balance Hídrico", f"{int(balance)} mm", delta="Exceso" if balance > 0 else "Falta")
-            if balance < 0: st.warning(f"Se necesita riego.")
-            else: st.success("Lluvia suficiente.")
-
-    with t3:
-        st.subheader("Consultoría Técnica Detallada")
-        
-        # 1. Mensajes de Comparación (Ideal vs Actual)
-        hay_problemas = False
-        
-        # Temp
-        if datos['clima']['temp_actual'] < regla_actual['temp_min'] or datos['clima']['temp_actual'] > regla_actual['temp_max']:
-            st.warning(f"⚠️ Temperatura actual ({datos['clima']['temp_actual']}°C) fuera de rango ideal ({regla_actual['temp_min']}-{regla_actual['temp_max']}°C).")
-            hay_problemas = True
+        try:
+            st.subheader(f"Fisiología: {variedad}")
             
-        # pH (Solo cultivos)
-        if categoria == "cultivos":
-            if ph_user < regla_actual['ph_min'] or ph_user > regla_actual['ph_max']:
-                st.warning(f"⚠️ pH del suelo ({ph_user}) inadecuado. Ideal: {regla_actual['ph_min']}-{regla_actual['ph_max']}.")
-                hay_problemas = True
+            if categoria in ["bovinos", "porcinos", "aves"]:
+                # --- ANIMALES ---
+                temp_a = datos['clima']['temp_actual']
+                hum_a = datos['clima']['humedad']
+                
+                # ITH (Índice Temperatura Humedad)
+                ith = (0.8 * temp_a) + ((hum_a/100) * (temp_a - 14.4)) + 46.4
+                
+                # Agua Estimada
+                consumo_base = 50 if categoria == "bovinos" else (6 if categoria == "porcinos" else 0.3)
+                factor = 1 + ((temp_a - 18) * 0.05) if temp_a > 18 else 1
+                agua = consumo_base * factor
+                
+                c1, c2 = st.columns(2)
+                c1.metric("Índice ITH", f"{ith:.1f}")
+                if ith < 72: c1.success("Zona de Confort")
+                elif ith < 78: c1.warning("Alerta Leve")
+                else: c1.error("Estrés Severo")
+                
+                c2.metric("Consumo Agua Estimado", f"{agua:.1f} Lt/día")
+            
+            else:
+                # --- CULTIVOS ---
+                temp_c = datos['clima']['temp_actual']
+                lluvia_c = datos['clima']['precipitacion_anual_estimada']
+                
+                gdd = max(0, temp_c - 10) # Grados día (Base 10)
+                balance = lluvia_c - 800
+                
+                c1, c2 = st.columns(2)
+                c1.metric("Crecimiento (GDD)", f"{gdd:.1f}")
+                if gdd > 8: c1.success("Crecimiento Rápido")
+                elif gdd > 0: c1.warning("Crecimiento Lento")
+                else: c1.error("Sin Crecimiento")
+                
+                c2.metric("Balance Hídrico", f"{int(balance)} mm")
+                if balance < 0: c2.error("Déficit")
+                else: c2.success("Superávit")
+                
+        except Exception as e:
+            st.error(f"Error mostrando fisiología: {e}")
 
-        # Agua (Solo cultivos)
-        if categoria == "cultivos":
-            req_agua = 500 # Valor base referencia
-            if datos['clima']['precipitacion_anual_estimada'] < req_agua:
-                faltante = req_agua - datos['clima']['precipitacion_anual_estimada']
-                st.info(f"💧 Falta de agua estimada ({int(datos['clima']['precipitacion_anual_estimada'])}mm). Requiere: {req_agua}mm. Déficit: {int(faltante)}mm.")
-                hay_problemas = True
+    # --- PESTAÑA 3: PLAN DE MANEJO (CONSEJOS) ---
+    with t3:
+        try:
+            st.subheader("Plan de Manejo y Soluciones")
+            
+            # Verificación de parámetros básicos
+            t_min = float(regla_actual['temp_min'])
+            t_max = float(regla_actual['temp_max'])
+            t_act = datos['clima']['temp_actual']
+            
+            # Comparativa Temperatura
+            if t_act < t_min or t_act > t_max:
+                st.warning(f"⚠️ Temperatura actual ({t_act}°C) fuera de rango ideal ({t_min}-{t_max}°C).")
+            else:
+                st.success("✅ Temperatura ideal para la especie.")
 
-        if not hay_problemas:
-            st.success("✅ Temperatura, pH y Agua están dentro de los parámetros ideales.")
+            # Comparativa pH (Visual en plan de manejo)
+            if categoria == "cultivos":
+                if ph_user < 5.5:
+                    st.error(f"⚠️ pH Ácido ({ph_user}). Requiere encalado urgente.")
+                elif ph_user > 7.8:
+                    st.error(f"⚠️ pH Alcalino ({ph_user}). Requiere acidificación.")
+                else:
+                    st.success(f"✅ pH ({ph_user}) correcto.")
 
-        st.divider()
-        
-        # 2. Consejos Expertos
-        st.write("**Plan de Acción:**")
-        if not consejos_expertos:
-            st.info("Las condiciones son estándar. Aplicar plan de manejo preventivo normal.")
-        
-        for texto, tipo in consejos_expertos:
-            if tipo == "error": st.error(texto)
-            elif tipo == "warning": st.warning(texto)
-            else: st.info(texto)
+            st.divider()
+            
+            # MOSTRAR LOS CONSEJOS GENERADOS
+            st.write("**🛡️ Acciones Recomendadas:**")
+            
+            # Aquí iteramos sobre los consejos generados con el nuevo pH
+            for texto, tipo in consejos_expertos:
+                if tipo == "error": st.error(texto)
+                elif tipo == "warning": st.warning(texto)
+                elif tipo == "success": st.success(texto)
+                else: st.info(texto)
+                
+        except Exception as e:
+            st.error(f"Error en el plan de manejo: {e}")
