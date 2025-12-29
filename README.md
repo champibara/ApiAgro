@@ -20,20 +20,19 @@ El sistema cuenta con un "Mapa Inteligente" que ofrece:
 ## 🏗️ Arquitectura del Sistema
 El flujo lógico de los datos sigue un proceso estructurado para garantizar la integridad de la información desde la fuente hasta el usuario final:
 
-\`\`\`mermaid
+```mermaid
 graph LR
     A[Fuentes Externas: API/CSV] --> B[Módulo de Extracción]
     B --> C[Transformación y Normalización - Pandas]
     C --> D[Cruce de Variables y Lógica de Aptitud]
     D --> E[Visualización: Mapa Inteligente]
-\`\`\`
-*Figura 1: Arquitectura lógica del flujo de datos (Pipeline).*
 
 ## 🛠️ Diseño y Planeamiento de la Extracción
 El sistema integra tres fuentes de información:
 1. **API de OpenWeather:** Datos climáticos en tiempo real.
 2. **API de Geopy:** Localización y coordenadas geográficas.
 3. **Archivos Estructurados (.CSV):** Parámetros técnicos de crianza y cultivo.
+```
 
 ## 📊 Estructuración de Datos
 La estructuración organiza los datos de entrada para que sean compatibles entre sí:
@@ -52,15 +51,35 @@ El procesamiento es el núcleo lógico del sistema donde ocurre la toma de decis
 * **Geopy & OpenWeather:** Motores de datos geográficos y climáticos.
 
 ## 📂 Estructura del Proyecto
-* \`src/\`: Lógica principal y módulos de extracción.
-* \`data/referencias/\`: Archivos CSV con parámetros técnicos.
-* \`.devcontainer/\`: Configuración para entorno de desarrollo estandarizado.
+```text
+ApiAgro/
+├── .devcontainer/           # Configuración de entorno estandarizado (Docker)
+├── data/
+│   └── referencias/         # Archivos CSV con parámetros técnicos agropecuarios
+├── src/                     # Lógica principal y módulos de extracción de datos
+├── .gitignore               # Archivos excluidos del control de versiones
+├── README.md                # Documentación técnica del proyecto
+├── app.py                   # Orquestador principal de la aplicación (Streamlit)
+└── requirements.txt         # Dependencias y librerías del proyecto
+```
 
 ## 🚀 Guía de Instalación
+### Opción A: Uso de DevContainer (Recomendado) 🐳
+Este proyecto está configurado para ejecutarse en un entorno estandarizado. Si utilizas **Visual Studio Code**:
+1. Abre la carpeta del proyecto.
+2. Haz clic en el aviso **"Reopen in Container"** que aparecerá automáticamente.
+3. El entorno se configurará solo, instalando Python y todas las dependencias necesarias.
 
-### Opción A: Uso de DevContainer (Recomendado)
-Si usas VS Code, el proyecto detectará automáticamente la carpeta **.devcontainer**. Haz clic en "Reopen in Container" para tener todo el entorno listo sin instalar nada manualmente.
+### Opción B: Instalación Local Tradicional 💻
+Si prefieres una instalación manual, sigue estos pasos:
 
-### Opción B: Instalación Local
-1. Instalar dependencias: \`pip install -r requirements.txt\`
-2. Ejecutar: \`streamlit run app.py\`
+1. **Clonar el repositorio** o descargar los archivos en tu computadora.
+2. **Instalar las dependencias** necesarias ejecutando:
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. **Ejecutar la aplicación con el siguiente comando:**
+   ```bash
+   streamlit run app.py
+   ```
+💡 Nota: La aplicación se abrirá automáticamente en una nueva pestaña de tu navegador predeterminado.
