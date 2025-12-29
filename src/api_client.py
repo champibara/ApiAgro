@@ -9,20 +9,36 @@ class AgroClimaClient:
         self.weather_url = "https://api.open-meteo.com/v1/forecast"
         self.elevation_url = "https://api.open-meteo.com/v1/elevation"
         self.solar_url = "https://api.sunrise-sunset.org/json"
-        # NUEVA API PARA BUSCAR CIUDADES
         self.geocoding_url = "https://geocoding-api.open-meteo.com/v1/search"
 
-    def buscar_ciudad(self, nombre):
-        """Busca coordenadas por nombre de ciudad"""
+    def buscar_opciones_ciudades(self, nombre):
+        """
+        Busca hasta 10 coincidencias y devuelve una lista para que el usuario elija.
+        """
         try:
-            params = {"name": nombre, "count": 1, "language": "es", "format": "json"}
+            # Pedimos 10 resultados ('count': 10)
+            params = {"name": nombre, "count": 10, "language": "es", "format": "json"}
             resp = requests.get(self.geocoding_url, params=params, verify=False, timeout=5).json()
+            
+            opciones = []
             if "results" in resp:
-                resultado = resp["results"][0]
-                return resultado["latitude"], resultado["longitude"], resultado["name"], resultado["country"]
-            return None
+                for r in resp["results"]:
+                    # Armamos una etiqueta clara: "Nombre, Región, País"
+                    pais = r.get("country", "")
+                    region = r.get("admin1", "") # admin1 suele ser la región/departamento
+                    nombre_lugar = r.get("name", "")
+                    
+                    etiqueta = f"{nombre_lugar}, {region} ({pais})"
+                    
+                    opciones.append({
+                        "label": etiqueta,
+                        "lat": r["latitude"],
+                        "lon": r["longitude"],
+                        "pais": pais
+                    })
+            return opciones
         except:
-            return None
+            return []
 
     def obtener_todo(self, lat, lon):
         clima = self._get_clima(lat, lon)
@@ -55,7 +71,8 @@ class AgroClimaClient:
                 "temp_max_dia": resp["daily"]["temperature_2m_max"][0]
             }
         except:
-            return {"temp_actual": 25, "humedad": 60, "precipitacion_anual_estimada": 800}
+            # Valores por defecto si falla la API
+            return {"temp_actual": 20, "humedad": 60, "precipitacion_anual_estimada": 500}
 
     def _get_pendiente_altitud(self, lat, lon):
         try:
