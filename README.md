@@ -16,13 +16,20 @@ Este proyecto surge ante la dificultad de acceder a información climática y am
 El sistema cuenta con un "Mapa Inteligente" que ofrece:
 * **Distribución Territorial:** Muestra la aptitud agropecuaria por regiones usando indicadores como temperatura, humedad y precipitación.
 * **Análisis por Zona:** Al seleccionar un área, indica los tipos de ganado recomendados y sus condiciones de crianza.
-* **Comparativa Regional:** Facilita la identificación de zonas óptimas para la actividad agrícola y ganadera.
 
 ## 🛠️ Diseño y Planeamiento de la Extracción
-Para cumplir con los requisitos de la evaluación, el sistema integra tres fuentes de información:
-1. **API de OpenWeather:** Datos climáticos en tiempo real (temperatura y humedad).
-2. **API de Geopy:** Localización geográfica y conversión de nombres a coordenadas.
-3. **Archivos Estructurados (.CSV):** Bases de datos con parámetros técnicos de crianza para diferentes especies.
+El sistema integra tres fuentes de información:
+1. **API de OpenWeather:** Datos climáticos en tiempo real.
+2. **API de Geopy:** Localización y coordenadas geográficas.
+3. **Archivos Estructurados (.CSV):** Parámetros técnicos de crianza y cultivo.
 
-## 📊 Estructuración y Combinación de Datos
-El sistema cruza la información climática obtenida por las APIs con los límites técnicos definidos en los archivos CSV locales. Mediante lógica en Python, se determina si una zona es apta y se envía esa información al mapa para su visualización interactiva.
+## 📊 Estructuración de Datos
+La estructuración organiza los datos de entrada para que sean compatibles entre sí:
+* **Conversión de Formatos:** Transformación de respuestas API (JSON) y tablas locales (CSV) en DataFrames de Pandas.
+* **Homogeneización:** Asegura que todas las fuentes utilicen las mismas unidades de medida y nombres de regiones para permitir el cruce de información.
+
+## ⚙️ Procesamiento de Datos
+El procesamiento es el núcleo lógico del sistema donde ocurre la toma de decisiones:
+* **Lógica de Comparación:** El sistema ejecuta algoritmos que contrastan la temperatura actual obtenida de la API contra los umbrales de supervivencia y confort registrados en los CSV.
+* **Generación de Indicadores:** Se calcula automáticamente un "Índice de Aptitud". Si los valores climáticos coinciden con los rangos óptimos, el sistema marca la zona como favorable.
+* **Automatización de Resultados:** El resultado del procesamiento se traduce en colores y etiquetas (Apto/No Apto) que alimentan directamente la interfaz visual del mapa.
