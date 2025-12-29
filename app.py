@@ -4,7 +4,6 @@ from streamlit_folium import st_folium
 import pandas as pd
 
 # --- IMPORTACIONES ---
-# Se importan los módulos de extracción (API) y procesamiento (Lógica)
 from src.api_client import AgroClimaClient
 from src.agro_logic import AgroAnalisis
 
@@ -84,7 +83,6 @@ def generar_consejos_experto(datos, categoria, ph_manual):
     return consejos
 
 # --- ESTADO DE SESIÓN ---
-# Mantiene la persistencia de datos entre interacciones de la interfaz
 if 'lat' not in st.session_state: st.session_state['lat'] = -12.0464
 if 'lon' not in st.session_state: st.session_state['lon'] = -77.0428
 if 'analisis_listo' not in st.session_state: st.session_state['analisis_listo'] = False
@@ -100,7 +98,6 @@ col_mapa, col_config = st.columns([2, 1])
 with col_mapa:
     st.subheader("📍 Ubicación")
     
-    # Pestañas de búsqueda: Implementación de geocodificación y GPS manual
     tab_buscar, tab_coords = st.tabs(["🔍 Buscador", "🌐 GPS Manual"])
     
     with tab_buscar:
@@ -117,7 +114,7 @@ with col_mapa:
                 lugar = opciones[sel]
                 st.session_state['lat'] = lugar['lat']
                 st.session_state['lon'] = lugar['lon']
-                st.session_state['analisis_listo'] = False # Resetear análisis al mover mapa
+                st.session_state['analisis_listo'] = False
                 st.rerun()
 
     with tab_coords:
@@ -130,7 +127,6 @@ with col_mapa:
             st.session_state['analisis_listo'] = False
             st.rerun()
 
-    # --- SELECCIÓN DE CAPA DE MAPA (SATÉLITE O CALLES) ---
     st.write("🎨 **Estilo de Mapa:**")
     tipo_mapa = st.radio("Capa", ["Satélite (ESRI)", "Calles (OSM)"], horizontal=True, label_visibility="collapsed")
     
@@ -141,17 +137,29 @@ with col_mapa:
         tiles = 'OpenStreetMap'
         attr = 'OSM'
 
-    # Renderizar mapa dinámico usando Folium
+    # Renderizar mapa y CAPTURAR eventos de clic
     m = folium.Map(location=[st.session_state['lat'], st.session_state['lon']], zoom_start=14, tiles=tiles, attr=attr)
     folium.Marker([st.session_state['lat'], st.session_state['lon']], icon=folium.Icon(color="red", icon="leaf")).add_to(m)
-    st_folium(m, height=350, width="100%")
+    
+    # El objeto 'output' guarda la información de interacción con el mapa
+    output = st_folium(m, height=350, width="100%", key="mapa_interactivo")
+
+    # Lógica para detectar clic en el mapa y mover el marcador
+    if output and output.get("last_clicked"):
+        click_lat = output["last_clicked"]["lat"]
+        click_lon = output["last_clicked"]["lng"]
+        # Solo recargar si la ubicación cambió para evitar bucles infinitos
+        if click_lat != st.session_state['lat'] or click_lon != st.session_state['lon']:
+            st.session_state['lat'] = click_lat
+            st.session_state['lon'] = click_lon
+            st.session_state['analisis_listo'] = False
+            st.rerun()
 
 # --- COLUMNA 2: CONFIGURACIÓN DE CULTIVO/ANIMAL ---
 with col_config:
     st.subheader("⚙️ Configuración")
     categoria = st.selectbox("Categoría", ["cultivos", "bovinos", "porcinos", "aves"])
     
-    # Cargar reglas técnicas desde archivos CSV (Capa de Estructuración)
     analista = AgroAnalisis()
     df_reglas = analista.cargar_reglas(categoria)
     
@@ -164,7 +172,6 @@ with col_config:
         if st.button("📊 ANALIZAR VIABILIDAD", type="primary"):
             with st.spinner("Consultando satélites y clima histórico..."):
                 cli = AgroClimaClient()
-                # Orquestación: Obtención de datos climáticos e históricos
                 st.session_state['datos_api'] = cli.obtener_todo(st.session_state['lat'], st.session_state['lon'])
                 st.session_state['analisis_listo'] = True
     else:
@@ -176,14 +183,10 @@ st.divider()
 if st.session_state['analisis_listo'] and st.session_state['datos_api']:
     datos = st.session_state['datos_api']
     
-    # =========================================================
-    # 🛠️ INPUT DE pH REACTIVO
-    # =========================================================
     st.subheader("🧪 Análisis de Suelo")
     col_input_ph, col_info_ph = st.columns([1, 4])
     
     with col_input_ph:
-        # Permite al usuario ajustar manualmente el pH para ver el cambio en los consejos
         ph_user = st.number_input(
             "pH del Suelo", 
             min_value=3.0, 
@@ -196,12 +199,8 @@ if st.session_state['analisis_listo'] and st.session_state['datos_api']:
     with col_info_ph:
         st.success(f"Analizando consejos para **pH {ph_user}**...")
 
-    # Actualizamos el diccionario localmente para que el 'analista' lo use también
     datos['suelo']['ph'] = ph_user 
 
-    # =========================================================
-    # 📡 DASHBOARD DE DATOS (Métricas Clave)
-    # =========================================================
     st.write("")
     m1, m2, m3, m4, m5 = st.columns(5)
     m1.metric("🌡️ Temp", f"{datos['clima']['temp_actual']} °C")
@@ -210,29 +209,17 @@ if st.session_state['analisis_listo'] and st.session_state['datos_api']:
     m4.metric("☀️ Luz", f"{datos['solar']['horas_luz']} h")
     m5.metric("🌧️ Lluvia", f"{int(datos['clima']['precipitacion_anual_estimada'])} mm")
 
-    # =========================================================
-    # 🧠 PROCESAMIENTO (Capa de Lógica)
-    # =========================================================
     try:
-        # 1. Puntuación (Score): Ejecuta el algoritmo de aptitud
         score, razones, riesgo = analista.analizar(datos, categoria, variedad)
-        
-        # 2. Consejos: Genera diagnósticos según el contexto
         consejos_expertos = generar_consejos_experto(datos, categoria, ph_user)
-        
-        # 3. Datos de referencia: Obtiene la fila técnica del CSV
         regla_actual = df_reglas[df_reglas['variedad'] == variedad].iloc[0]
 
     except Exception as e:
         st.error(f"Error en cálculos internos: {e}")
         st.stop()
 
-    # =========================================================
-    # 📑 PESTAÑAS DE DETALLE (Visualización Avanzada)
-    # =========================================================
     t1, t2, t3 = st.tabs(["📊 INFORME", "🧬 FISIOLOGÍA", "📝 PLAN DE MANEJO"])
 
-    # --- PESTAÑA 1: INFORME DE APTITUD ---
     with t1:
         if score >= 80: st.success(f"### ✅ APTO ({score}/100) - {variedad}")
         elif score >= 50: st.warning(f"### ⚠️ RIESGO MEDIO ({score}/100) - {variedad}")
@@ -243,20 +230,14 @@ if st.session_state['analisis_listo'] and st.session_state['datos_api']:
         else:
             st.success("✅ Todos los parámetros están en rango óptimo.")
 
-    # --- PESTAÑA 2: FISIOLOGÍA (Cálculos Biológicos) ---
     with t2:
         try:
             st.subheader(f"Fisiología: {variedad}")
             
             if categoria in ["bovinos", "porcinos", "aves"]:
-                # --- ANIMALES: Cálculo del ITH y Consumo de Agua ---
                 temp_a = datos['clima']['temp_actual']
                 hum_a = datos['clima']['humedad']
-                
-                # ITH (Índice Temperatura Humedad): Métrica estándar de estrés calórico
                 ith = (0.8 * temp_a) + ((hum_a/100) * (temp_a - 14.4)) + 46.4
-                
-                # Agua Estimada según especie y temperatura ambiente
                 consumo_base = 50 if categoria == "bovinos" else (6 if categoria == "porcinos" else 0.3)
                 factor = 1 + ((temp_a - 18) * 0.05) if temp_a > 18 else 1
                 agua = consumo_base * factor
@@ -266,48 +247,32 @@ if st.session_state['analisis_listo'] and st.session_state['datos_api']:
                 if ith < 72: c1.success("Zona de Confort")
                 elif ith < 78: c1.warning("Alerta Leve")
                 else: c1.error("Estrés Severo")
-                
                 c2.metric("Consumo Agua Estimado", f"{agua:.1f} Lt/día")
             
             else:
-                # --- CULTIVOS: Grados Día (GDD) y Balance Hídrico ---
                 temp_c = datos['clima']['temp_actual']
                 lluvia_c = datos['clima']['precipitacion_anual_estimada']
-                
-                # GDD (Grados día): Mide la acumulación de calor para el desarrollo
-                gdd = max(0, temp_c - 10) # Grados día (Base 10)
+                gdd = max(0, temp_c - 10)
                 balance = lluvia_c - 800
-                
                 c1, c2 = st.columns(2)
                 c1.metric("Crecimiento (GDD)", f"{gdd:.1f}")
-                if gdd > 8: c1.success("Crecimiento Rápido")
-                elif gdd > 0: c1.warning("Crecimiento Lento")
-                else: c1.error("Sin Crecimiento")
-                
                 c2.metric("Balance Hídrico", f"{int(balance)} mm")
-                if balance < 0: c2.error("Déficit")
-                else: c2.success("Superávit")
                 
         except Exception as e:
             st.error(f"Error mostrando fisiología: {e}")
 
-    # --- PESTAÑA 3: PLAN DE MANEJO (RECOMENDACIONES) ---
     with t3:
         try:
             st.subheader("Plan de Manejo y Soluciones")
-            
-            # Verificación comparativa de parámetros básicos
             t_min = float(regla_actual['temp_min'])
             t_max = float(regla_actual['temp_max'])
             t_act = datos['clima']['temp_actual']
             
-            # Comparativa Temperatura API vs Referencia CSV
             if t_act < t_min or t_act > t_max:
                 st.warning(f"⚠️ Temperatura actual ({t_act}°C) fuera de rango ideal ({t_min}-{t_max}°C).")
             else:
                 st.success("✅ Temperatura ideal para la especie.")
 
-            # Comparativa pH dinámico
             if categoria == "cultivos":
                 if ph_user < 5.5:
                     st.error(f"⚠️ pH Ácido ({ph_user}). Requiere encalado urgente.")
@@ -317,10 +282,7 @@ if st.session_state['analisis_listo'] and st.session_state['datos_api']:
                     st.success(f"✅ pH ({ph_user}) correcto.")
 
             st.divider()
-            
-            # Renderizado de la lista de acciones recomendadas por el sistema experto
             st.write("**🛡️ Acciones Recomendadas:**")
-            
             for texto, tipo in consejos_expertos:
                 if tipo == "error": st.error(texto)
                 elif tipo == "warning": st.warning(texto)
